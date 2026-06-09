@@ -1,0 +1,1785 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>胖嫦娥的月宫奇遇</title>
+  <style>
+    /* ===== 全局重置 & 变量 ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --purple-dark: #2d1b4e;
+      --purple-main: #6b4c9a;
+      --purple-light: #9b7cc0;
+      --purple-pale: #e8dff5;
+      --purple-bg: #f3ecf9;
+      --gold: #d4a853;
+      --gold-light: #f0dca0;
+      --red-accent: #c75050;
+      --green-life: #6abf69;
+      --text-primary: #2d1b4e;
+      --text-secondary: #6b5a7e;
+      --white: #ffffff;
+    }
+
+    html, body {
+      width: 100%; height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--purple-dark);
+      color: var(--text-primary);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    /* ===== 全屏滑动容器（核心） ===== */
+    .slides-container {
+      position: relative;
+      width: 100%;
+      max-width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+    }
+
+    /* ===== 每页幻灯片 ===== */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;          /* 双向定位替代 width:100%，防止宽度计算异常 */
+      width: 100%;
+      max-width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 42px;
+      padding-left: 0;
+      padding-right: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      /* 隐藏滚动条但保留滚动功能 */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      overscroll-behavior-y: contain;
+      /* 注意：transform 过渡用于滑入动画，但 active 状态的 !important 确保最终归位 */
+      transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.55s ease;
+      z-index: 1;
+      opacity: 0;
+      box-sizing: border-box;
+      /* 强制无横向位移 */
+      transform: translateX(0);
+    }
+
+    /* 隐藏 WebKit 内核浏览器的滚动条 */
+    .slide::-webkit-scrollbar { display: none; }
+
+    /* 居中页面（封面、灾难、困境、结局、落地页） */
+    .slide:not(.page-interactive) {
+      justify-content: center;
+    }
+
+    .slide:not(.page-interactive):not(.page-landing) {
+      padding-top: 0;
+    }
+
+    .slide.active {
+      z-index: 2;
+      opacity: 1;
+      /* 强制归位，覆盖任何残留的 transform */
+      transform: translateX(0) !important;
+      left: 0 !important;
+    }
+
+    /* 进入动画方向 — 仅用于初始位置设置 */
+    .slide.from-left {
+      transform: translateX(-30%);
+      opacity: 0;
+    }
+    .slide.from-right {
+      transform: translateX(30%);
+      opacity: 0;
+    }
+    /* 离开方向 — 不再使用，统一用 opacity 淡出 */
+
+    /* 页面内容进入时的元素动画 */
+    .slide.active .anim-in {
+      animation: slideInUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .slide.active .anim-in-d1 { animation-delay: 0.08s !important; }
+    .slide.active .anim-in-d2 { animation-delay: 0.18s !important; }
+    .slide.active .anim-in-d3 { animation-delay: 0.32s !important; }
+    .slide.active .anim-in-d4 { animation-delay: 0.46s !important; }
+    .slide.active .anim-in-d5 { animation-delay: 0.60s !important; }
+
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* 离开时淡出子元素 */
+    .slide.leaving .anim-in {
+      animation: slideOutDown 0.35s ease both;
+    }
+
+    @keyframes slideOutDown {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 0; transform: translateY(20px) scale(0.96); }
+    }
+
+    /* 初始隐藏状态 */
+    .anim-in { opacity: 0; }
+
+    /* ===== 装饰性云纹背景 ===== */
+    .cloud-pattern {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0.05;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath fill='%23ffffff' d='M40,120 Q30,100 45,90 Q35,80 55,75 Q60,60 80,70 Q95,55 110,72 Q130,62 140,82 Q160,78 155,98 Q170,108 150,125 Q155,145 130,140 Q115,155 100,138 Q80,148 65,132 Q48,142 40,120z'/%3E%3C/svg%3E");
+      background-size: 300px 200px;
+    }
+
+    /* ===== 通用文字样式 ===== */
+    .page-content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 500px;
+      padding: 0 28px;
+      text-align: center;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+    }
+
+    .page-tag {
+      display: inline-block;
+      padding: 5px 16px;
+      background: rgba(212, 168, 83, 0.15);
+      border: 1px solid rgba(212, 168, 83, 0.3);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--gold);
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+
+    .page-title {
+      font-size: clamp(22px, 6vw, 36px);
+      font-weight: 700;
+      line-height: 1.32;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.25);
+    }
+
+    .page-subtitle {
+      font-size: clamp(13px, 3.5vw, 16px);
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 20px;
+      font-weight: 400;
+    }
+
+    .page-body-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.85;
+      text-align: left;
+      padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.48);
+      backdrop-filter: blur(10px);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.55);
+      margin-bottom: 20px;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+    }
+
+    .page-body-text p { margin-bottom: 8px; }
+    .page-body-text p:last-child { margin-bottom: 0; }
+
+    /* ===== 图片容器 ===== */
+    .page-image-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 340px;
+      margin: 0 auto 18px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 10px 36px rgba(45, 27, 78, 0.22);
+    }
+
+    .page-image {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ===== 导航指示器（底部圆点） ===== */
+    .nav-indicators {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 100;
+      padding: 10px 18px;
+      background: rgba(27, 15, 46, 0.6);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .nav-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      padding: 0;
+    }
+
+    .nav-dot.active {
+      background: var(--gold-light);
+      box-shadow: 0 0 12px rgba(240, 220, 160, 0.5);
+      transform: scale(1.25);
+    }
+
+    /* ===== 左右点击区域 ===== */
+    .click-zone {
+      position: fixed;
+      top: 0;
+      height: 100%;
+      width: 38%;
+      z-index: 50;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .click-zone.left { left: 0; }
+    .click-zone.right { right: 0; }
+
+    /* ===== 下滑/上滑提示箭头 ===== */
+    .nav-hint {
+      position: fixed;
+      bottom: 76px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 51;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      animation: hintBounce 2.2s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .nav-hint span {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 1px;
+      white-space: nowrap;
+      background: rgba(27, 15, 46, 0.5);
+      padding: 3px 12px;
+      border-radius: 10px;
+      backdrop-filter: blur(6px);
+    }
+
+    .nav-hint-arrow {
+      width: 16px;
+      height: 16px;
+      border-right: 2px solid rgba(255,255,255,0.45);
+      border-bottom: 2px solid rgba(255,255,255,0.45);
+      transform: rotate(45deg);
+    }
+
+    @keyframes hintBounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.5; }
+      50% { transform: translateX(-50%) translateY(7px); opacity: 0.9; }
+    }
+
+    /* ===== 页码显示 ===== */
+    .page-number {
+      position: fixed;
+      top: env(safe-area-inset-top, 14px);
+      right: 20px;
+      z-index: 100;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===== 切换过渡遮罩特效 ===== */
+    .transition-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 99;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .transition-overlay.flash {
+      background: radial-gradient(circle at 50% 40%, rgba(240,220,160,0.15), transparent 70%);
+      animation: flashGlow 0.5s ease-out;
+    }
+
+    @keyframes flashGlow {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* ============================
+       第1页｜封面
+       ============================ */
+    .page-cover {
+      background: linear-gradient(180deg, #1a0f30 0%, #3d2563 45%, #6b4c9a 100%);
+    }
+
+    .cover-img-container {
+      position: relative;
+      width: 100%;
+      max-width: 380px;
+      margin: 0 auto 16px;
+    }
+
+    .cover-img-container img {
+      width: 100%;
+      border-radius: 20px;
+      box-shadow: 0 14px 48px rgba(0,0,0,0.33);
+    }
+
+    .moon-glow {
+      position: absolute;
+      top: -26px;
+      right: -16px;
+      width: 110px;
+      height: 110px;
+      background: radial-gradient(circle, rgba(240,220,160,0.23) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: moonPulse 4s ease-in-out infinite;
+    }
+
+    @keyframes moonPulse {
+      0%, 100% { transform: scale(1); opacity: 0.55; }
+      50% { transform: scale(1.18); opacity: 1; }
+    }
+
+    .cover-title {
+      font-size: clamp(24px, 6.5vw, 38px);
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.28;
+      margin-bottom: 6px;
+      letter-spacing: 2px;
+    }
+
+    .cover-highlight {
+      color: var(--gold-light);
+      position: relative;
+    }
+
+    .cover-subtitle {
+      font-size: clamp(12px, 3.3vw, 16px);
+      color: rgba(232, 222, 245, 0.82);
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+    }
+
+    .cover-body {
+      text-align: center;
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 18px 22px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .cover-body p {
+      font-size: 13px;
+      color: rgba(232, 222, 245, 0.78);
+      line-height: 1.85;
+      margin-bottom: 7px;
+    }
+
+    .cover-body p:last-child { margin-bottom: 0; }
+
+    /* ============================
+       第2页｜变故：大旱
+       ============================ */
+    .page-disaster {
+      background: linear-gradient(180deg, #2d1b4e 0%, #5c3d7a 50%, #8b4a3c 100%);
+    }
+
+    .heat-wave {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 28%;
+      background: linear-gradient(180deg, transparent, rgba(199, 80, 60, 0.07));
+      z-index: 1;
+      animation: heatShimmer 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes heatShimmer {
+      from { opacity: 0.25; }
+      to { opacity: 0.65; }
+    }
+
+    /* ============================
+       第3页｜困境：无法起飞
+       ============================ */
+    .page-dilemma {
+      background: linear-gradient(180deg, #3d2563 0%, #5a4280 58%, #7a6899 100%);
+    }
+
+    .struggle-icon {
+      display: inline-block;
+      font-size: 34px;
+      margin-bottom: 10px;
+      animation: wobble 2.2s ease-in-out infinite;
+    }
+
+    @keyframes wobble {
+      0%, 100% { transform: rotate(-3deg) translateY(0); }
+      50% { transform: rotate(3deg) translateY(-5px); }
+    }
+
+    /* ============================
+       第4页｜核心互动：进度条改身材（全面重构版）
+       ============================ */
+    .page-interactive {
+      background: linear-gradient(180deg, #1a0f30 0%, #2d1b4e 42%, #4a3270 100%);
+      justify-content: flex-start;
+      padding-top: 24px;
+      padding-left: 12px;
+      padding-right: 12px;
+      padding-bottom: 40px;
+      overflow-y: visible;
+      overflow-x: hidden;
+      /* 填满父容器并可超出一屏滚动 */
+      min-height: 100%;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .interactive-header {
+      text-align: center;
+      margin-bottom: 8px;
+      width: 100%;
+      max-width: 560px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 4px;
+      /* 防止任何子元素溢出 */
+      overflow: hidden;
+    }
+
+    .interactive-header .page-tag {
+      background: linear-gradient(135deg, rgba(212,168,83,0.18), rgba(212,168,83,0.04));
+      border-color: var(--gold);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 6px rgba(212,168,83,0.18); }
+      50% { box-shadow: 0 0 18px rgba(212,168,83,0.38); }
+    }
+
+    .interactive-header .page-title {
+      font-size: clamp(16px, 4.5vw, 23px);
+      line-height: 1.3;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      /* 强制不溢出容器 */
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .interactive-header .page-subtitle {
+      font-size: clamp(11px, 2.6vw, 13px);
+      margin-bottom: 0;
+      color: rgba(232,222,245,0.7);
+      line-height: 1.4;
+    }
+
+    /* 可画编辑器模拟界面 — 自适应宽度，防溢出 */
+    .editor-frame {
+      width: calc(100% - 8px);
+      max-width: 520px;
+      margin: 0 auto;
+      background: #1e1838;
+      border-radius: 14px;
+      overflow: hidden;           /* 防止内部溢出 */
+      box-shadow: 0 14px 44px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      background: #161128;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .toolbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .toolbar-logo .logo-dot {
+      width: 20px; height: 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: white;
+    }
+
+    .toolbar-tools { display: flex; gap: 7px; }
+
+    .tool-btn {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.05);
+      border: none;
+      color: rgba(255,255,255,0.45);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+    /* 编辑器画布 — 由图片自然撑开高度，不设上限 */
+    .editor-canvas {
+      position: relative;
+      width: 100%;
+      min-height: 200px;
+      /* 不设 max-height！让图片完整显示 */
+      overflow: hidden;
+      background: #f0ebf8;
+    }
+
+    /* 图片对比滑块核心交互 */
+    .slider-compare-container {
+      position: relative;
+      width: 100%;
+      min-height: 200px;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .compare-img {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;           /* contain确保图片完整不被裁切 */
+      object-position: center center;
+      background: #f0ebf8;
+    }
+
+    .compare-after {
+      clip-path: inset(0 0 0 var(--clip-left, 50%));
+    }
+
+    /* 对比标签 */
+    .compare-label {
+      position: absolute;
+      bottom: 10px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      backdrop-filter: blur(8px);
+      z-index: 2;
+      letter-spacing: 0.5px;
+    }
+    .label-before { left: 10px; background: rgba(199, 80, 60, 0.8); }
+    .label-after { right: 10px; background: rgba(106, 191, 105, 0.8); }
+
+    /* 滑块分割线 */
+    .slider-handle-line {
+      position: absolute;
+      top: 0; bottom: 0;
+      left: var(--handle-pos, 50%);
+      width: 3px;
+      background: var(--white);
+      box-shadow: 0 0 10px rgba(0,0,0,0.28), 0 0 20px rgba(212,168,83,0.3);
+      z-index: 5;
+      cursor: ew-resize;
+      transform: translateX(-50%);
+      transition: left 0.05s linear;
+    }
+
+    .slider-handle-line.dragging {
+      box-shadow: 0 0 15px rgba(0,0,0,0.35), 0 0 30px rgba(212,168,83,0.6), 0 0 60px rgba(106,191,105,0.25);
+      width: 4px;
+    }
+
+    .slider-handle-knob {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px; height: 44px;
+      background: var(--white);
+      border-radius: 50%;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.28), 0 0 0 3px rgba(255,255,255,0.18), 0 0 20px rgba(212,168,83,0.2);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 6; cursor: grab;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .slider-handle-knob:active,
+    .slider-handle-knob.dragging {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(1.18);
+      box-shadow: 0 5px 22px rgba(0,0,0,0.38), 0 0 0 4px rgba(212,168,83,0.5), 0 0 40px rgba(212,168,83,0.3);
+    }
+
+    .slider-handle-knob svg { width: 22px; height: 22px; color: var(--purple-dark); }
+
+    .slider-hint {
+      position: absolute; top: -38px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.96);
+      color: var(--purple-dark);
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: 12px; font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.2);
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; z-index: 10;
+    }
+
+    .slider-hint::after {
+      content: ""; position: absolute; bottom: -6px; left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: rgba(255,255,255,0.96);
+      border-bottom: none;
+    }
+
+    .slider-hint.active,
+    .slider-handle-line.dragging ~ .slider-hint { opacity: 1; }
+
+    /* ===== 身形状态指示器（新增）===== */
+    .shape-meter {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 7px 14px;
+      margin: 0;
+      background: linear-gradient(90deg, rgba(199,80,60,0.08), rgba(212,168,83,0.08), rgba(106,191,105,0.08));
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      overflow: hidden;           /* 防止内容溢出 */
+    }
+
+    .shape-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--red-accent), var(--gold));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .shape-info {
+      text-align: left;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .shape-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gold-light);
+      transition: color 0.3s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .shape-desc {
+      font-size: 9.5px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 1px;
+      transition: color 0.3s ease;
+    }
+
+    .shape-percent {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--gold);
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      min-width: 42px;
+      text-align: right;
+      transition: color 0.3s ease;
+    }
+
+    /* 底部进度条 — 增大增强可玩性 */
+    .slider-bar-area {
+      padding: 12px 14px 14px;
+      background: #161128;
+      overflow: hidden;
+    }
+
+    .slider-bar-label {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+      font-size: 11px; color: rgba(255,255,255,0.45);
+      font-weight: 500;
+      /* 防止文字溢出 */
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+
+    #progressText {
+      font-weight: 700;
+      color: var(--gold-light);
+      font-size: 11px;
+    }
+
+    .slider-bar-track {
+      position: relative; width: 100%; height: 42px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 21px; cursor: pointer; overflow: visible;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .slider-bar-fill {
+      position: absolute; top: 0; left: 0; height: 100%;
+      width: var(--bar-fill, 50%);
+      background: linear-gradient(90deg, #c75050 0%, #d4a853 50%, #6abf69 100%);
+      border-radius: 21px;
+      transition: width 0.06s linear, background 0.3s ease;
+      pointer-events: none;
+    }
+
+    .slider-bar-thumb {
+      position: absolute; top: 50%;
+      left: var(--thumb-left, calc(50% - 20px));
+      width: 40px; height: 40px;
+      background: var(--white); border-radius: 50%;
+      transform: translateY(-50%);
+      box-shadow: 0 3px 14px rgba(0,0,0,0.28), 0 0 0 3px rgba(212,168,83,0.2);
+      display: flex; align-items: center; justify-content: center;
+      cursor: grab; z-index: 2;
+      transition: left 0.06s linear, transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .slider-bar-thumb:active,
+    .slider-bar-thumb.dragging {
+      transform: translateY(-50%) scale(1.15);
+      cursor: grabbing;
+      box-shadow: 0 5px 22px rgba(0,0,0,0.38), 0 0 0 4px rgba(212,168,83,0.5), 0 0 30px rgba(212,168,83,0.25);
+    }
+
+    .slider-bar-thumb svg { width: 20px; height: 20px; color: var(--purple-main); }
+
+    .slider-bar-marks {
+      display: flex; justify-content: space-between;
+      margin-top: 8px; padding: 0 2px;
+    }
+
+    .slider-bar-marks span { font-size: 10px; color: rgba(255,255,255,0.28); font-weight: 500; }
+
+    /* 互动提示条 — 更醒目更有趣 */
+    .interaction-alert {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px;
+      margin-top: 10px; padding: 8px 16px;
+      background: linear-gradient(135deg, rgba(212,168,83,0.14), rgba(106,191,105,0.1));
+      border: 1px dashed rgba(212,168,83,0.4);
+      border-radius: 12px;
+      max-width: 480px; width: calc(100% - 16px); margin-left: auto; margin-right: auto;
+      animation: alertPulse 2.2s ease-in-out infinite;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    @keyframes alertPulse {
+      0%, 100% { border-color: rgba(212,168,83,0.35); }
+      50% { border-color: rgba(212,168,83,0.75); }
+    }
+
+    .interaction-alert .alert-hand { font-size: 18px; animation: handWave 1.5s ease-in-out infinite; }
+
+    @keyframes handWave {
+      0%, 100% { transform: rotate(-10deg); }
+      50% { transform: rotate(10deg) translateX(4px); }
+    }
+
+    .interaction-alert p {
+      font-size: 11px; color: var(--gold);
+      font-weight: 600; letter-spacing: 0.3px;
+    }
+
+    .interact-desc {
+      max-width: 420px;
+      width: calc(100% - 16px);
+      margin: 10px auto 0;
+      padding: 0 12px;
+      box-sizing: border-box;
+    }
+
+    .interact-desc .desc-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,0.07); text-align: left;
+      overflow: hidden;           /* 防止内容溢出 */
+    }
+
+    .interact-desc .desc-card p {
+      font-size: 11px; color: rgba(232, 222, 245, 0.72);
+      line-height: 1.7; margin-bottom: 4px;
+      /* 强制文字换行，绝不溢出 */
+      word-break: break-word;
+      overflow-wrap: break-word;
+      max-width: 100%;
+    }
+
+    .interact-desc .desc-card p:last-child { margin-bottom: 0; }
+    .interact-desc .desc-card strong { color: var(--gold-light); }
+
+    /* ============================
+       第5页｜结局：飞天降雨
+       ============================ */
+    .page-resolution {
+      background: linear-gradient(180deg, #153022 0%, #1f4a36 28%, #3d7a54 56%, #68bd78 85%, #8ee89a 100%);
+    }
+
+    .page-resolution .page-title,
+    .page-resolution .page-subtitle { color: #fff; }
+
+    .rain-drop {
+      position: absolute; width: 2px; height: 14px;
+      background: linear-gradient(transparent, rgba(150,210,255,0.55));
+      animation: rainFall linear infinite;
+      pointer-events: none; z-index: 1;
+    }
+
+    @keyframes rainFall {
+      0% { transform: translateY(-20px); opacity: 0; }
+      10% { opacity: 1; } 90% { opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+
+    .sparkle {
+      position: absolute; width: 5px; height: 5px;
+      background: radial-gradient(circle, rgba(255,230,150,0.88), transparent);
+      border-radius: 50%;
+      animation: sparkleAnim 2s ease-in-out infinite;
+      pointer-events: none; z-index: 1;
+    }
+
+    @keyframes sparkleAnim {
+      0%, 100% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1); opacity: 1; }
+    }
+
+    .rainbow-overlay {
+      position: absolute; top: 8%; left: 50%;
+      transform: translateX(-50%);
+      width: 300px; height: 150px;
+      border-radius: 150px 150px 0 0;
+      background: linear-gradient(
+        180deg,
+        rgba(255,0,0,0.14) 0%, rgba(255,127,0,0.14) 14%,
+        rgba(255,255,0,0.14) 28%, rgba(0,255,0,0.14) 42%,
+        rgba(0,0,255,0.14) 57%, rgba(75,0,130,0.14) 71%,
+        rgba(143,0,143,0.14) 85%
+      );
+      z-index: 1; filter: blur(7px); opacity: 0.55;
+    }
+
+    /* ============================
+       第6页｜落地页：跳转可画
+       ============================ */
+    .page-landing {
+      background: linear-gradient(180deg, #1a0f30 0%, #2d1b4e 50%, #4a3270 100%);
+      padding: 52px 24px 88px;
+    }
+
+    .landing-hero { text-align: center; margin-bottom: 30px; }
+
+    .landing-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 16px;
+      background: linear-gradient(135deg, rgba(102,126,234,0.18), rgba(118,75,162,0.18));
+      border: 1px solid rgba(102,126,234,0.28);
+      border-radius: 22px;
+      font-size: 11px; color: #a8b4ff;
+      margin-bottom: 18px; letter-spacing: 1px;
+    }
+
+    .landing-title {
+      font-size: clamp(24px, 6.5vw, 37px);
+      font-weight: 800; color: var(--white);
+      line-height: 1.28; margin-bottom: 8px;
+    }
+
+    .landing-title em {
+      font-style: normal;
+      background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .landing-subtitle {
+      font-size: 14px; color: rgba(232, 222, 245, 0.68); line-height: 1.55;
+    }
+
+    .landing-img-wrap {
+      width: 100%; max-width: 360px;
+      margin: 0 auto 28px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 14px 42px rgba(0,0,0,0.28);
+    }
+
+    .landing-img-wrap img { width: 100%; display: block; }
+
+    .landing-features {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; max-width: 380px; margin: 0 auto 30px;
+    }
+
+    .feature-mini {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px; padding: 14px 8px; text-align: center;
+    }
+
+    .feature-mini .f-icon { font-size: 24px; margin-bottom: 6px; }
+    .feature-mini .f-name { font-size: 11px; color: rgba(255,255,255,0.65); font-weight: 500; }
+
+    .landing-desc {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px; padding: 18px 22px;
+      max-width: 380px; margin: 0 auto 30px; text-align: left;
+    }
+
+    .landing-desc p {
+      font-size: 13px; color: rgba(232, 222, 245, 0.66);
+      line-height: 1.85; margin-bottom: 7px;
+    }
+
+    .landing-desc p:last-child { margin-bottom: 0; }
+    .landing-desc strong { color: var(--gold-light); }
+
+    .cta-main {
+      display: block; width: 100%; max-width: 340px; margin: 0 auto;
+      padding: 16px 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; text-decoration: none; border-radius: 28px;
+      font-size: 17px; font-weight: 700; text-align: center;
+      letter-spacing: 1.5px;
+      box-shadow: 0 7px 28px rgba(102, 126, 234, 0.38);
+      transition: all 0.3s ease; position: relative; overflow: hidden;
+    }
+
+    .cta-main:hover { transform: translateY(-2px); box-shadow: 0 12px 38px rgba(102, 126, 234, 0.48); }
+
+    .cta-main::before {
+      content: ""; position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) rotate(0deg); }
+      100% { transform: translateX(100%) rotate(0deg); }
+    }
+
+    .cta-note {
+      text-align: center; margin-top: 12px;
+      font-size: 11px; color: rgba(255,255,255,0.3);
+    }
+
+    /* ===== 响应式 ===== */
+
+    /* 超小屏幕手机 (iPhone 5/SE等, 320px) */
+    @media (max-width: 360px) {
+      .page-content { padding: 0 14px; }
+      .page-title { font-size: clamp(18px, 5.5vw, 28px); }
+      .page-subtitle { font-size: clamp(11px, 3vw, 14px); }
+      .cover-title { font-size: clamp(20px, 6vw, 32px); }
+      .editor-frame { width: calc(100% - 16px); max-width: 300px; }
+      .editor-canvas { min-height: 180px; }
+      .shape-avatar { width: 28px; height: 28px; font-size: 13px; }
+      .shape-name { font-size: 10.5px; }
+      .shape-desc { font-size: 8.5px; }
+      .shape-percent { font-size: 15px; min-width: 34px; }
+      .slider-handle-knob, .slider-bar-thumb { width: 32px; height: 32px; }
+      .slider-bar-track { height: 36px; }
+      .landing-features { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+      .feature-mini { padding: 8px 4px; }
+      .feature-mini .f-icon { font-size: 20px; }
+      .feature-mini .f-name { font-size: 10px; }
+      .nav-indicators { padding: 8px 14px; }
+      .nav-dot { width: 7px; height: 7px; }
+      .cta-main { font-size: 15px; padding: 14px 0; }
+      .interactive-header .page-title { font-size: clamp(15px, 5.5vw, 20px); }
+      .interaction-alert { margin-top: 8px; padding: 6px 12px; font-size: 10px; width: calc(100% - 12px); }
+      .interact-desc .desc-card p { font-size: 10px; }
+      .interact-desc { padding: 0 8px; width: calc(100% - 12px); }
+      .page-interactive { padding-top: 18px; padding-bottom: 24px; padding-left: 8px; padding-right: 8px; }
+    }
+
+    /* 小屏幕手机 (iPhone 6/7/8, 375px) */
+    @media (min-width: 361px) and (max-width: 400px) {
+      .page-content { padding: 0 16px; }
+      .editor-frame { width: calc(100% - 20px); max-width: 340px; }
+      .editor-canvas { min-height: 200px; }
+      .landing-features { gap: 6px; }
+      .feature-mini { padding: 10px 6px; }
+      .slider-handle-knob, .slider-bar-thumb { width: 36px; height: 36px; }
+      .page-image-wrapper { max-width: 290px; }
+      .interactive-header .page-title { font-size: clamp(16px, 5vw, 22px); }
+      .slider-bar-track { height: 38px; }
+    }
+
+    /* 中等屏幕手机 (iPhone 12/13, 414px) */
+    @media (min-width: 401px) and (max-width: 480px) {
+      .page-content { padding: 0 20px; }
+      .editor-frame { width: calc(100% - 24px); max-width: 380px; }
+      .editor-canvas { min-height: 220px; }
+      .page-image-wrapper { max-width: 320px; }
+      .interactive-header .page-title { font-size: clamp(16px, 4.8vw, 22px); }
+    }
+
+    /* 大屏幕手机 (iPhone Pro Max, 428px+) */
+    @media (min-width: 481px) and (max-width: 767px) {
+      .page-content { padding: 0 24px; }
+      .page-image-wrapper { max-width: 360px; }
+      .editor-frame { max-width: 440px; }
+      .editor-canvas { min-height: 260px; }
+      .interactive-header { max-width: 480px; }
+    }
+
+    /* 平板及以上 */
+    @media (min-width: 768px) {
+      .page-image-wrapper { max-width: 420px; }
+      .editor-frame { max-width: 480px; }
+      .editor-canvas { min-height: 300px; }
+      .landing-features { max-width: 440px; }
+      .page-content { max-width: 600px; }
+      .interactive-header { max-width: 520px; }
+    }
+
+    /* 桌面端优化 — 关键！减少两侧留白 */
+    @media (min-width: 1024px) {
+      .page-content { max-width: 700px; }
+      .editor-frame { max-width: 520px; }
+      .editor-canvas { min-height: 340px; }
+      .page-image-wrapper { max-width: 450px; }
+      .interactive-header { max-width: 560px; }
+      .interactive-header .page-title { font-size: clamp(19px, 3.2vw, 25px); }
+      .shape-avatar { width: 38px; height: 38px; font-size: 20px; }
+      .shape-name { font-size: 15px; }
+      .shape-percent { font-size: 24px; min-width: 54px; }
+    }
+
+    /* 横屏手机优化 */
+    @media (max-height: 500px) and (orientation: landscape) {
+      .slide { padding-top: 20px; }
+      .page-interactive { padding-top: 16px; padding-bottom: 16px; }
+      .page-landing { padding: 30px 24px 70px; }
+      .cover-img-container { max-width: 280px; margin-bottom: 10px; }
+      .page-image-wrapper { max-width: 250px; margin-bottom: 10px; }
+      .editor-canvas { min-height: 180px; }
+      .shape-meter { padding: 5px 10px; }
+      .slider-bar-area { padding: 8px 10px 10px; }
+      .nav-hint { bottom: 50px; }
+      .nav-indicators { bottom: 10px; }
+    }
+
+    /* 优化触摸体验 */
+    @media (hover: none) and (pointer: coarse) {
+      .tool-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.45); }
+      .cta-main:hover { transform: none; }
+      .slider-handle-knob, .slider-bar-thumb {
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+
+    /* 安全区域适配 (iPhone X及以上) */
+    @media (padding-bottom: env(safe-area-inset-bottom)) {
+      .nav-indicators {
+        bottom: calc(20px + env(safe-area-inset-bottom));
+      }
+      .nav-hint {
+        bottom: calc(76px + env(safe-area-inset-bottom));
+      }
+    }
+
+    /* ===== 全局文字换行修复 ===== */
+    * {
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+    }  </style>
+</head>
+<body>
+
+<!-- 背景云纹 -->
+<div class="cloud-pattern"></div>
+
+<!-- 过渡闪光层 -->
+<div class="transition-overlay" id="transitionOverlay"></div>
+
+<!-- 左右点击导航区 -->
+<div class="click-zone left" id="zoneLeft"></div>
+<div class="click-zone right" id="zoneRight"></div>
+
+<!-- 底部导航圆点 -->
+<nav class="nav-indicators" id="navIndicators">
+  <!-- JS 动态生成 -->
+</nav>
+
+<!-- 上滑提示 -->
+<div class="nav-hint" id="navHint">
+  <span id="hintText">继续滑动 ↓</span>
+  <div class="nav-hint-arrow"></div>
+</div>
+
+<!-- 页码 -->
+<div class="page-number" id="pageNumber">1 / 6</div>
+
+
+<!-- ============================================================
+     全屏滑动容器
+     ============================================================ -->
+<div class="slides-container" id="slidesContainer">
+
+
+<!-- ========== 第1页｜封面 ========== -->
+<section class="slide page-cover active" data-index="0">
+
+  <div class="moon-glow anim-in"></div>
+
+  <div class="cover-img-container anim-in anim-in-d1">
+    <img src="images/微信图片_20260609151935_39_3.jpg" alt="胖嫦娥月宫日常" class="page-image">
+  </div>
+
+  <div class="page-content">
+    <span class="page-tag anim-in anim-in-d1">✦ 月宫日常 ✦</span>
+    <h1 class="cover-title anim-in anim-in-d2"><span class="cover-highlight">圆胖嫦娥</span><br>月宫乐享时光</h1>
+    <p class="cover-subtitle anim-in anim-in-d2">桂花糕配玉兔，岁月悠闲无忧愁</p>
+
+    <div class="cover-body anim-in anim-in-d3">
+      <p>久居月宫，日日糕点相伴，嫦娥慢慢养出圆润体态。</p>
+      <p>玉兔朝夕相伴，云雾环绕身旁，每一天都闲适自在。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ========== 第2页｜变故：天降大旱 ========== -->
+<section class="slide page-disaster" data-index="1">
+  <div class="cloud-pattern"></div>
+  <div class="heat-wave"></div>
+
+  <div class="page-content">
+    <span class="page-tag anim-in anim-in-d1">⚠️ 天降灾祸 ⚠️</span>
+    <h2 class="page-title anim-in anim-in-d1">突发大旱<br>苍生亟待甘霖</h2>
+    <p class="page-subtitle anim-in anim-in-d2">唯有嫦娥飞天降雨，方能解救万民</p>
+
+    <div class="page-image-wrapper anim-in anim-in-d2">
+      <img src="images/微信图片_20260609154217_40_3.jpg" alt="大旱凡间受灾" class="page-image">
+    </div>
+
+    <div class="page-body-text anim-in anim-in-d3">
+      <p>无端天灾降临人间，烈日炙烤、河湖干涸，庄稼尽数枯死。</p>
+      <p>世间生灵苦不堪言，传说<strong style="color:var(--purple-main)">月宫嫦娥身怀降雨仙法</strong>，是拯救旱情唯一希望。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ========== 第3页｜困境：无法起飞 ========== -->
+<section class="slide page-dilemma" data-index="2">
+  <div class="cloud-pattern"></div>
+
+  <div class="page-content">
+    <div class="struggle-icon anim-in anim-in-d1">😰💫</div>
+    <span class="page-tag anim-in anim-in-d1">🚫 困境重重 🚫</span>
+    <h2 class="page-title anim-in anim-in-d2">身形臃肿负重<br>嫦娥难踏祥云</h2>
+    <p class="page-subtitle anim-in anim-in-d2">仙力托不住胖体态，救灾被困月宫</p>
+
+    <div class="page-image-wrapper anim-in anim-in-d3">
+      <img src="images/微信图片_20260609162105_42_3.jpg" alt="嫦娥起飞困难" class="page-image">
+    </div>
+
+    <div class="page-body-text anim-in anim-in-d4">
+      <p>常年甜食养成胖胖身形，沉重体态压制仙力，任凭如何发力，始终离地不得。</p>
+      <p>想去凡间布雨救灾，却被身材困住，看着凡间苦难<strong style="color:var(--red-accent)">束手无策</strong>。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ========== 第4页｜核心互动：进度条改身材 ★重点★ ========== -->
+<section class="slide page-interactive" data-index="3">
+  <div class="cloud-pattern"></div>
+
+  <!-- 标题区 — 更紧凑，防溢出 -->
+  <div class="interactive-header anim-in">
+    <span class="page-tag anim-in-d1">🎨 可画编辑器 · 实操演示</span>
+    <h2 class="page-title anim-in-d2">打开可画<br>拖动进度条改造嫦娥身形</h2>
+    <p class="page-subtitle anim-in-d3">滑动调节条，一键从胖仙子变身窈窕仙女</p>
+  </div>
+
+  <!-- 模拟可画编辑器界面（自适应宽度） -->
+  <div class="editor-frame anim-in anim-in-d1">
+    <!-- 工具栏 -->
+    <div class="editor-toolbar">
+      <div class="toolbar-logo"><span class="logo-dot">可</span><span>可画</span></div>
+      <div class="toolbar-tools">
+        <button class="tool-btn" title="裁剪">✂</button>
+        <button class="tool-btn" title="滤镜">🎨</button>
+        <button class="tool-btn" title="调整">⚙</button>
+      </div>
+    </div>
+
+    <!-- 身形状态指示器（新增交互元素）-->
+    <div class="shape-meter" id="shapeMeter">
+      <div class="shape-avatar" id="shapeAvatar">🌕</div>
+      <div class="shape-info">
+        <div class="shape-name" id="shapeName">圆润胖仙子</div>
+        <div class="shape-desc" id="shapeDesc">仙力被体态压制，无法起飞</div>
+      </div>
+      <div class="shape-percent" id="shapePercent">50%</div>
+    </div>
+
+    <!-- 画布：图片对比滑块（自适应高度） -->
+    <div class="editor-canvas anim-in anim-in-d2">
+      <div class="slider-compare-container" id="compareContainer">
+        <img src="images/Chinese_traditional_art_style__2026-06-05T00-56-51.png"
+             alt="胖嫦娥 Before" class="compare-img compare-before">
+        <img src="images/Chinese_traditional_art_style__2026-06-05T00-58-04.png"
+             alt="瘦版嫦娥 After" class="compare-img compare-after" id="afterImg">
+        <span class="compare-label label-before">圆润体态 🌙</span>
+        <span class="compare-label label-after">窈窕仙女 ✨</span>
+        <div class="slider-handle-line" id="handleLine">
+          <div class="slider-handle-knob" id="handleKnob">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8l4 4-4 4"/><path d="M6 8l-4 4 4 4"/><path d="M2 12h20"/>
+            </svg>
+          </div>
+          <div class="slider-hint" id="dragHint">拖动我试试 →</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部进度条（增大增强） -->
+    <div class="slider-bar-area anim-in anim-in-d3">
+      <div class="slider-bar-label">
+        <span>圆润 🌕</span>
+        <span id="progressText">拖动调节中...</span>
+        <span>苗条 💃</span>
+      </div>
+      <div class="slider-bar-track" id="barTrack">
+        <div class="slider-bar-fill" id="barFill"></div>
+        <div class="slider-bar-thumb" id="barThumb">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+          </svg>
+        </div>
+      </div>
+      <div class="slider-bar-marks">
+        <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 醒目互动提示 -->
+  <div class="interaction-alert anim-in anim-in-d4">
+    <span class="alert-hand">👉</span>
+    <p>手动拖动进度条或图片上的滑块，亲眼见证嫦娥瘦身全过程！</p>
+  </div>
+
+  <!-- 说明文案 -->
+  <div class="interact-desc anim-in anim-in-d5">
+    <div class="desc-card">
+      <p>遇上难题不用愁，<strong>可画轻松搞定人像塑形</strong>！</p>
+      <p>在可画编辑页面，选中嫦娥插画，<strong>左右拖动页面下方进度条</strong>：</p>
+      <p>→ 向左拖动，嫦娥保持圆润胖体态</p>
+      <p>→ 向右拉动进度条，腰身收紧、肉肉消失，臃肿嫦娥逐步变得纤细苗条</p>
+      <p>不用手绘、不用专业修图技巧，<strong>拖拽即可随心修改人物身材</strong></p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ========== 第5页｜结局：瘦身飞天甘霖治愈大旱 ========== -->
+<section class="slide page-resolution" data-index="4">
+  <div class="cloud-pattern"></div>
+  <div class="rainbow-overlay"></div>
+  <!-- 雨滴装饰 JS 动态生成 -->
+
+  <div class="page-content">
+    <span class="page-tag anim-in anim-in-d1" style="background:rgba(106,191,105,0.14);border-color:rgba(106,191,105,0.28);color:#fff;">🌧️ 大旱解除 🌈</span>
+    <h2 class="page-title anim-in anim-in-d1">体态轻盈乘风起<br>甘霖遍洒润山河</h2>
+    <p class="page-subtitle anim-in anim-in-d2" style="color:rgba(255,255,255,0.82);">得益于可画进度条微调，旱情圆满解除</p>
+
+    <div class="page-image-wrapper anim-in anim-in-d2">
+      <img src="images/Epic_Chinese_fantasy_masterpie_2026-06-05T01-11-25.png" alt="嫦娥飞天降雨" class="page-image" id="resolutionImg">
+    </div>
+
+    <div class="page-body-text anim-in anim-in-d3" style="background:rgba(255,255,255,0.13);border-color:rgba(255,255,255,0.22);">
+      <p style="color:rgba(255,255,255,0.88);">依靠可画进度条灵活调整身形，嫦娥摆脱臃肿束缚，<strong style="color:#b8f0b0;">仙力尽数恢复</strong>，乘风奔赴凡间。</p>
+      <p style="color:rgba(255,255,255,0.88);">漫天雨露洒落干涸大地，<strong style="color:#b8f0b0;">枯土生绿、万物复苏</strong>，持续许久的大旱彻底消散。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ========== 第6页｜引导落地页：跳转可画 ========== -->
+<section class="slide page-landing" data-index="5">
+  <div class="cloud-pattern"></div>
+
+  <div class="landing-hero anim-in">
+    <span class="landing-badge anim-in anim-in-d1">✦ 可画 · 创意设计平台 ✦</span>
+    <h1 class="landing-title anim-in anim-in-d2">创意改图修形<br>就在<em>可画</em></h1>
+    <p class="landing-subtitle anim-in anim-in-d2">拖拽进度条随心设计，零基础轻松创作</p>
+  </div>
+
+  <div class="landing-img-wrap anim-in anim-in-d3">
+    <img src="images/Chinese_traditional_art_style__2026-06-05T00-58-04.png" alt="可画落地页">
+  </div>
+
+  <div class="landing-features anim-in anim-in-d3">
+    <div class="feature-mini"><div class="f-icon">🖼️</div><div class="f-name">人像改身材</div></div>
+    <div class="feature-mini"><div class="f-icon">✏️</div><div class="f-name">图片修细节</div></div>
+    <div class="feature-mini"><div class="f-icon">📐</div><div class="f-name">海报设计</div></div>
+  </div>
+
+  <div class="landing-desc anim-in anim-in-d4">
+    <p>本次嫦娥瘦身、整套 H5 画面，<strong>全部都能在可画里制作完成</strong>。</p>
+    <p>人像改身材、图片修细节、海报设计——只需选中素材，<strong>拖动功能进度条即可调整效果</strong>，海量免费模板、国风素材一键取用。</p>
+  </div>
+
+  <a href="https://www.canva.cn" target="_blank" class="cta-main anim-in anim-in-d5" id="mainCTA">
+    立即打开可画，拖动创作你的作品 →
+  </a>
+
+  <p class="cta-note anim-in anim-in-d5">点击按钮跳转可画官网，免费体验拖拽式设计</p>
+</section>
+
+
+</div><!-- /slides-container -->
+
+
+<!-- ============================================================
+     JavaScript：全屏滑动切换 + 交互逻辑
+     ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // ========================================
+  // 一、页面滑动切换系统（核心）
+  // ========================================
+  const slides = document.querySelectorAll('.slide');
+  const totalSlides = slides.length;
+  let currentIndex = 0;
+  let isTransitioning = false;
+
+  const navIndicators = document.getElementById('navIndicators');
+  const pageNumber = document.getElementById('pageNumber');
+  const hintText = document.getElementById('hintText');
+  const overlay = document.getElementById('transitionOverlay');
+
+  // 提示文案列表
+  const hints = [
+    '下滑开启凡间奇遇 ↓',
+    '下滑遇见嫦娥的难题 ↓',
+    '下滑解锁神器「可画」 ↓',
+    '瘦身完毕，下滑看降雨救苍生 ↓',
+    '下滑直达可画使用入口 ↓',
+    '已到最后啦 ✨'
+  ];
+
+  // 生成导航圆点
+  for (let i = 0; i < totalSlides; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', `第${i + 1}页`);
+    dot.dataset.index = i;
+    dot.addEventListener('click', () => goToSlide(i));
+    navIndicators.appendChild(dot);
+  }
+
+  function updateNav() {
+    // 圆点
+    document.querySelectorAll('.nav-dot').forEach((dot, i) => {
+      dot.classList.toggle('active', i === currentIndex);
+    });
+    // 页码
+    pageNumber.textContent = `${currentIndex + 1} / ${totalSlides}`;
+    // 提示文字
+    hintText.textContent = hints[currentIndex];
+    // 隐藏最后一页提示
+    document.getElementById('navHint').style.display = currentIndex === totalSlides - 1 ? 'none' : 'flex';
+  }
+
+  function goToSlide(index, direction) {
+    if (isTransitioning || index === currentIndex || index < 0 || index >= totalSlides) return;
+    isTransitioning = true;
+
+    const oldSlide = slides[currentIndex];
+    const newSlide = slides[index];
+    const dir = direction || (index > currentIndex ? 'left' : 'right');
+
+    // 第一步：立即重置所有页面的状态（最关键！）
+    slides.forEach(s => {
+      // 清除所有方向类
+      s.classList.remove('from-left', 'from-right', 'to-left', 'to-right', 'leaving', 'active');
+      // 强制清除所有内联样式（transform, opacity, left 等）
+      s.style.cssText = '';
+      // 重置内部滚动
+      s.scrollTop = 0;
+      s.scrollLeft = 0;
+    });
+
+    // 第二步：设置旧页面淡出
+    oldSlide.classList.add('leaving');
+    oldSlide.style.opacity = '0';
+    // 旧页面保持 translateX(0)，只做淡出
+
+    // 第三步：设置新页面初始偏移位置
+    newSlide.classList.add(dir === 'left' ? 'from-right' : 'from-left');
+
+    // 第四步：用 requestAnimationFrame 确保浏览器完成渲染后再激活新页面
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // 激活新页面 — 从偏移位置滑入到居中位置
+        newSlide.classList.remove('from-left', 'from-right');
+        newSlide.classList.add('active'); // active 的 transform: translateX(0) !important 会触发过渡
+
+        // 闪光特效
+        overlay.className = 'transition-overlay';
+        void overlay.offsetWidth;
+        overlay.classList.add('flash');
+
+        // 动画完成后清理旧页面
+        setTimeout(() => {
+          oldSlide.classList.remove('leaving');
+          oldSlide.style.cssText = '';
+          isTransitioning = false;
+        }, 550);
+
+        currentIndex = index;
+        updateNav();
+      });
+    });
+  }
+
+  function nextSlide() { goToSlide(currentIndex + 1, 'left'); }
+  function prevSlide() { goToSlide(currentIndex - 1, 'right'); }
+
+
+  // ========================================
+  // 二、交互方式：点击 + 触摸滑动 + 键盘
+  // ========================================
+
+  // 1) 点击左右半屏
+  document.getElementById('zoneLeft').addEventListener('click', prevSlide);
+  document.getElementById('zoneRight').addEventListener('click', nextSlide);
+
+  // 2) 触摸滑动
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchEndX = 0;
+  let touchEndY = 0;
+
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].clientX;
+    touchEndY = e.changedTouches[0].clientY;
+    handleSwipe();
+  }, { passive: true });
+
+  function handleSwipe() {
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // 水平滑动 > 垂直滑动 且 滑动距离足够
+    if (absDx > 45 && absDx > absDy * 1.2) {
+      if (dx > 0) prevSlide(); else nextSlide();
+    }
+    // 垂直滑动也支持
+    else if (absDy > 60 && absDy > absDx * 1.2) {
+      if (dy < 0) nextSlide(); else prevSlide();
+    }
+  }
+
+  // 3) 键盘
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault(); nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault(); prevSlide();
+    }
+  });
+
+  // 4) 滚轮（桌面端）
+  let wheelTimeout;
+  document.addEventListener('wheel', e => {
+    e.preventDefault();
+    clearTimeout(wheelTimeout);
+    wheelTimeout = setTimeout(() => {
+      if (e.deltaY > 0) nextSlide(); else prevSlide();
+    }, 50);
+  }, { passive: false });
+
+
+  // ========================================
+  // 三、第4页：图片对比滑块交互（增强版）
+  // ========================================
+  const container = document.getElementById('compareContainer');
+  const afterImg = document.getElementById('afterImg');
+  const handleLine = document.getElementById('handleLine');
+  const handleKnob = document.getElementById('handleKnob');
+  const dragHint = document.getElementById('dragHint');
+  const barTrack = document.getElementById('barTrack');
+  const barFill = document.getElementById('barFill');
+  const barThumb = document.getElementById('barThumb');
+  const progressText = document.getElementById('progressText');
+
+  // 身形状态指示器元素
+  const shapeAvatar = document.getElementById('shapeAvatar');
+  const shapeName = document.getElementById('shapeName');
+  const shapeDesc = document.getElementById('shapeDesc');
+  const shapePercent = document.getElementById('shapePercent');
+
+  let isDragging = false;
+
+  // 身形状态数据（6个阶段，随百分比变化）
+  const shapeStates = [
+    { min: 0,   max: 15,  emoji: '🌕', name: '圆润胖仙子',  desc: '仙力被体态压制，无法起飞',     color: '#c75050' },
+    { min: 15,  max: 30,  emoji: '🌖', name: '微胖月宫仙',  desc: '开始有些吃力，但还能飘',         color: '#cf7a3e' },
+    { min: 30,  max: 45,  emoji: '🌗', name: '正在蜕变中',  desc: '身形逐渐收紧，有戏！',           color: '#d4a853' },
+    { min: 45,  max: 60,  emoji: '🌘', name: '苗条进行时',  desc: '腰线出来了，仙力恢复中',       color: '#8fb860' },
+    { min: 60,  max: 80,  emoji: '🌑', name: '窈窕仙女范',  desc: '轻盈如燕，快要飞起来了',       color: '#6abf69' },
+    { min: 80,  max: 100, emoji: '✨', name: '完美飞天仙女', desc: '体态轻盈，乘风降雨救苍生！',   color: '#4ac0a0' }
+  ];
+
+  function getShapeState(pct) {
+    return shapeStates.find(s => pct >= s.min && pct < s.max) || shapeStates[shapeStates.length - 1];
+  }
+
+  function updateSlider(percent) {
+    percent = Math.max(0, Math.min(100, percent));
+
+    // 更新图片裁切
+    container.style.setProperty('--clip-left', `${100 - percent}%`);
+    handleLine.style.setProperty('--handle-pos', `${percent}%`);
+
+    // 更新底部进度条（thumb 宽度 40px）
+    barTrack.style.setProperty('--bar-fill', `${percent}%`);
+    barTrack.style.setProperty('--thumb-left', `calc(${percent}% - 20px)`);
+
+    // 更新进度文字（更细腻的反馈）
+    if (percent < 15) progressText.textContent = '圆润满满~ 🌕';
+    else if (percent < 30) progressText.textContent = '开始变化... ✨';
+    else if (percent < 50) progressText.textContent = '正在瘦身... 🔥';
+    else if (percent < 70) progressText.textContent = '苗条起来啦! 💃';
+    else if (percent < 90) progressText.textContent = '接近完美! 🌟';
+    else progressText.textContent = '完美蜕变! 💫';
+
+    // 更新身形状态指示器（核心新增！）
+    const state = getShapeState(percent);
+    shapeAvatar.textContent = state.emoji;
+    shapeAvatar.style.background = `linear-gradient(135deg, ${state.color}, ${state.color}dd)`;
+    shapeName.textContent = state.name;
+    shapeName.style.color = state.color;
+    shapeDesc.textContent = state.desc;
+    shapePercent.textContent = Math.round(percent) + '%';
+    shapePercent.style.color = state.color;
+
+    // 进度条填充色渐变也跟随当前状态色
+    barFill.style.background = `linear-gradient(90deg, #c75050 0%, #d4a853 ${Math.min(percent * 0.8, 50)}%, ${state.color} 100%)`;
+  }
+
+  function getPos(e) {
+    const rect = container.getBoundingClientRect();
+    let cx;
+    if (e.touches && e.touches.length > 0) cx = e.touches[0].clientX;
+    else if (e.changedTouches && e.changedTouches.length > 0) cx = e.changedTouches[0].clientX;
+    else cx = e.clientX;
+    return ((cx - rect.left) / rect.width) * 100;
+  }
+
+  function onDragStart(e) {
+    isDragging = true;
+    dragHint.classList.add('active');
+    dragHint.textContent = '继续拖动~';
+    e.preventDefault();
+    // 添加拖动视觉反馈效果
+    handleLine.classList.add('dragging');
+    handleKnob.classList.add('dragging');
+    barThumb.classList.add('dragging');
+    updateSlider(getPos(e));
+  }
+
+  function onDragMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    updateSlider(getPos(e));
+  }
+
+  function onDragEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    // 移除拖动视觉反馈
+    handleLine.classList.remove('dragging');
+    handleKnob.classList.remove('dragging');
+    barThumb.classList.remove('dragging');
+    const cl = parseFloat(getComputedStyle(container).getPropertyValue('--clip-left')) || 50;
+    const pct = 100 - cl;
+    if (pct > 85) { dragHint.textContent = '太棒了！嫦娥瘦身成功 🎉'; setTimeout(() => dragHint.classList.remove('active'), 2500); }
+    else { dragHint.classList.remove('active'); setTimeout(() => { dragHint.textContent = '拖动我试试 →'; }, 500); }
+  }
+
+  if (handleLine) {
+    handleLine.addEventListener('mousedown', onDragStart);
+    handleLine.addEventListener('touchstart', onDragStart, { passive: false });
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('mouseup', onDragEnd);
+    document.addEventListener('touchend', onDragEnd);
+
+    // 底部进度条也可点击/拖拽
+    barTrack.addEventListener('mousedown', e => {
+      isDragging = true;
+      handleLine.classList.add('dragging');
+      handleKnob.classList.add('dragging');
+      barThumb.classList.add('dragging');
+      updateSlider(((e.clientX - barTrack.getBoundingClientRect().left) / barTrack.getBoundingClientRect().width) * 100);
+    });
+    barTrack.addEventListener('touchstart', e => {
+      isDragging = true;
+      handleLine.classList.add('dragging');
+      handleKnob.classList.add('dragging');
+      barThumb.classList.add('dragging');
+      updateSlider(((e.touches[0].clientX - barTrack.getBoundingClientRect().left) / barTrack.getBoundingClientRect().width) * 100);
+    }, { passive: false });
+  }
+
+  // 初始化到中间位置
+  updateSlider(50);
+
+  // 动态调整画布高度，确保图片完整显示（不裁切人物）
+  const beforeImg = container.querySelector('.compare-before');
+  if (beforeImg) {
+    const fitCanvasHeight = () => {
+      if (beforeImg.naturalWidth && beforeImg.naturalHeight) {
+        const imgRatio = beforeImg.naturalHeight / beforeImg.naturalWidth;
+        const cw = container.clientWidth || container.offsetWidth || 300;
+        // 按图片实际比例计算高度，不设上限（页面可滚动）
+        const targetH = Math.max(200, cw * imgRatio);
+        container.style.minHeight = targetH + 'px';
+        container.style.height = targetH + 'px';
+        // 同步更新editor-canvas
+        const canvas = container.closest('.editor-canvas');
+        if (canvas) {
+          canvas.style.minHeight = targetH + 'px';
+          canvas.style.height = targetH + 'px';
+        }
+      }
+    };
+    if (beforeImg.complete && beforeImg.naturalWidth) {
+      fitCanvasHeight();
+    } else {
+      beforeImg.addEventListener('load', fitCanvasHeight, { once: true });
+    }
+    // 窗口resize时重新计算
+    window.addEventListener('resize', () => {
+      clearTimeout(window._canvasFitTimer);
+      window._canvasFitTimer = setTimeout(fitCanvasHeight, 150);
+    });
+  }
+
+
+  // ========================================
+  // 四、第5页：雨滴 + 星光特效
+  // ========================================
+  const resPage = document.getElementById('p5') || slides[4];
+
+  for (let i = 0; i < 22; i++) {
+    const drop = document.createElement('div');
+    drop.className = 'rain-drop';
+    drop.style.left = Math.random() * 100 + '%';
+    drop.style.animationDuration = (0.55 + Math.random() * 0.7) + 's';
+    drop.style.animationDelay = Math.random() * 3 + 's';
+    drop.style.height = (9 + Math.random() * 12) + 'px';
+    resPage.appendChild(drop);
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const spark = document.createElement('div');
+    spark.className = 'sparkle';
+    spark.style.left = (8 + Math.random() * 84) + '%';
+    spark.style.top = (18 + Math.random() * 62) + '%';
+    spark.style.animationDelay = Math.random() * 3 + 's';
+    resPage.appendChild(spark);
+  }
+
+
+  // ========================================
+  // 五、初始化
+  // ========================================
+  updateNav();
+
+})();
+</script>
+
+</body>
+</html>
+
+
